@@ -12,7 +12,6 @@ import {
 import { CreditCard, LogOut, User } from "lucide-react";
 
 export function UserNav() {
-  
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -27,9 +26,7 @@ export function UserNav() {
               alt="User Image"
               className="object-cover"
             />
-            <AvatarFallback>
-             Win
-            </AvatarFallback>
+            <AvatarFallback>Win</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
@@ -46,33 +43,26 @@ export function UserNav() {
               alt="User Image"
               className="object-cover"
             />
-            <AvatarFallback>
-              Win
-            </AvatarFallback>
+            <AvatarFallback>Win</AvatarFallback>
           </Avatar>
           <div className="grid flex-1 text-left text-sm leading-tight">
-            <p className="font-medium truncate">Win</p>
+            <p className="font-medium truncate">Shune</p>
             <p className="text-muted-foreground truncate text-xs">
-              winhtoonaing2003@gmail.com
+              slaeseesir@gmail.com
             </p>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem >
-            
-              <User />
-              Account
-           
+          <DropdownMenuItem>
+            <User />
+            Account
           </DropdownMenuItem>
-         
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem >
-         
-            <LogOut />
-            Logout
-          
+        <DropdownMenuItem>
+          <LogOut />
+          Logout
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

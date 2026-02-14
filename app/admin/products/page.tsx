@@ -1,7 +1,8 @@
-"use client"
-import React, { useMemo, useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+"use client";
+
+import React, { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -9,231 +10,232 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
+} from "@/components/ui/table";
+
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
+  DialogFooter,
+} from "@/components/ui/dialog";
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui/select";
 
-// fake shops
-const shops = [
-  { id: 1, name: "Shop A" },
-  { id: 2, name: "Shop B" },
-]
+import { Plus, Pencil, Trash2 } from "lucide-react";
 
-const PAGE_SIZE = 5
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+
+import { productSchema } from "@/types/product-schema";
+
+/** ================= TYPES ================= */
+
+type Product = {
+  id: number;
+  name: string;
+  categoryId: number;
+  categoryName: string;
+  purchasePrice: number;
+  salePrice: number;
+  totalStock: number;
+};
+
+type Category = {
+  id: number;
+  name: string;
+};
 
 export default function AdminProductPage() {
-  const [products, setProducts] = useState([
-    { id: 1, name: "Football Jersey", category: "Sports", price: 25000, totalStock: 20 },
-    { id: 2, name: "Boots", category: "Sports", price: 50000, totalStock: 3 },
-    { id: 3, name: "Bag", category: "Accessories", price: 15000, totalStock: 12 },
-    { id: 4, name: "Cap", category: "Accessories", price: 8000, totalStock: 7 },
-    { id: 5, name: "Socks", category: "Sports", price: 3000, totalStock: 2 },
-    { id: 6, name: "Shoes", category: "Fashion", price: 60000, totalStock: 10 },
-  ])
+  /** ================= STATES ================= */
 
-  const [search, setSearch] = useState("")
-  const [categoryFilter, setCategoryFilter] = useState("all")
-  const [currentPage, setCurrentPage] = useState(1)
+  const [open, setOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
-  const [assignQty, setAssignQty] = useState(1)
-  const [selectedShop, setSelectedShop] = useState("")
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
 
-  const [newProduct, setNewProduct] = useState({
-    name: "",
-    category: "",
-    price: 0,
-    totalStock: 0,
-  })
-  const [editProduct, setEditProduct] = useState<any>(null)
+  const [editProduct, setEditProduct] = useState<Product | null>(null);
 
-  /** CATEGORY LIST */
-  const categories = useMemo(() => {
-    return Array.from(new Set(products.map(p => p.category)))
-  }, [products])
+  /** ================= CREATE FORM ================= */
 
-  /** FILTER */
-  const filteredProducts = products.filter(p => {
-    const matchSearch =
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.category.toLowerCase().includes(search.toLowerCase())
+  const form = useForm<z.infer<typeof productSchema>>({
+    resolver: zodResolver(productSchema),
+    defaultValues: {
+      name: "",
+      categoryId: "",
+      purchasePrice: 0,
+      salePrice: 0,
+      totalStock: 0,
+    },
+  });
 
-    const matchCategory =
-      categoryFilter === "all" || p.category === categoryFilter
+  /** ================= MOCK API ================= */
 
-    return matchSearch && matchCategory
-  })
+  useEffect(() => {
+    setProducts([
+      {
+        id: 1,
+        name: "Football Jersey",
+        categoryId: 1,
+        categoryName: "Sports",
+        purchasePrice: 20000,
+        salePrice: 25000,
+        totalStock: 20,
+      },
+    ]);
 
-  /** PAGINATION */
-  const totalPages = Math.ceil(filteredProducts.length / PAGE_SIZE)
-  const paginatedProducts = filteredProducts.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE
-  )
+    setCategories([
+      { id: 1, name: "Sports" },
+      { id: 2, name: "Accessories" },
+      { id: 3, name: "Fashion" },
+    ]);
+  }, []);
 
-  /** CRUD */
-  const addProduct = () => {
-    if (newProduct.totalStock < 0) return
-    setProducts([...products, { id: Date.now(), ...newProduct }])
-    setNewProduct({ name: "", category: "", price: 0, totalStock: 0 })
-  }
+  /** ================= CREATE ================= */
+
+  const onCreate = (values: z.infer<typeof productSchema>) => {
+    const payload = {
+      name: values.name,
+      categoryId: Number(values.categoryId),
+      purchasePrice: values.purchasePrice,
+      salePrice: values.salePrice,
+      totalStock: values.totalStock,
+    };
+
+    console.log("CREATE PRODUCT →", payload);
+    setOpen(false);
+    form.reset();
+  };
+
+  /** ================= EDIT ================= */
+
+  const openEditDialog = (product: Product) => {
+    setEditProduct(product);
+    setEditOpen(true);
+  };
 
   const updateProduct = () => {
-    setProducts(products.map(p => (p.id === editProduct.id ? editProduct : p)))
-    setEditProduct(null)
-  }
+    if (!editProduct) return;
+
+    const payload = {
+      id: editProduct.id,
+      name: editProduct.name,
+      categoryId: Number(editProduct.categoryId),
+      purchasePrice: editProduct.purchasePrice,
+      salePrice: editProduct.salePrice,
+      totalStock: editProduct.totalStock,
+    };
+
+    console.log("UPDATE PRODUCT →", payload);
+    setEditOpen(false);
+  };
+
+  /** ================= DELETE ================= */
 
   const deleteProduct = (id: number) => {
-    setProducts(products.filter(p => p.id !== id))
-  }
+    console.log("DELETE PRODUCT ID →", id);
+  };
 
-  const assignProduct = (id: number) => {
-    setProducts(products.map(p =>
-      p.id === id ? { ...p, totalStock: p.totalStock - assignQty } : p
-    ))
-    setAssignQty(1)
-    setSelectedShop("")
-  }
+  /** ================= UI ================= */
 
   return (
-    <section className="p-6 space-y-4">
-      <h1 className="text-2xl font-bold">Main Admin – Products</h1>
+    <section className="p-6">
+      <h1 className="text-2xl font-bold mb-6">Product Management</h1>
 
-      {/* FILTER BAR */}
-      <div className="flex gap-4 items-center">
-        <Input
-          placeholder="Search product..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="w-1/3"
-        />
-
-        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-          <SelectTrigger className="w-56">
-            <SelectValue placeholder="Filter by category" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            {categories.map(c => (
-              <SelectItem key={c} value={c}>{c}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {/* ADD PRODUCT */}
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button>Add Product</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add Product</DialogTitle>
-            </DialogHeader>
-            <Input placeholder="Name" onChange={e => setNewProduct({ ...newProduct, name: e.target.value })} />
-            <Input placeholder="Category" onChange={e => setNewProduct({ ...newProduct, category: e.target.value })} />
-            <Input type="number" placeholder="Price" onChange={e => setNewProduct({ ...newProduct, price: Number(e.target.value) })} />
-            <Input type="number" min={0} placeholder="Stock" onChange={e => setNewProduct({ ...newProduct, totalStock: Number(e.target.value) })} />
-            <Button onClick={addProduct}>Save</Button>
-          </DialogContent>
-        </Dialog>
+      <div className="flex justify-between mb-4">
+        <Button onClick={() => setOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add Product
+        </Button>
       </div>
 
       {/* TABLE */}
-      <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
+      <div className="rounded-xl border bg-background shadow-sm">
         <Table>
-          <TableHeader className="bg-muted/50">
+          <TableHeader>
             <TableRow>
-              <TableHead>Product</TableHead>
+              <TableHead>Name</TableHead>
               <TableHead>Category</TableHead>
-              <TableHead>Price</TableHead>
-              <TableHead className="text-center">Stock</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead>Purchase</TableHead>
+              <TableHead>Sale</TableHead>
+              <TableHead>Stock</TableHead>
+              <TableHead className="text-right">Action</TableHead>
             </TableRow>
           </TableHeader>
+
           <TableBody>
-            {paginatedProducts.map(p => (
+            {products.map((p) => (
               <TableRow key={p.id}>
-                <TableCell className="font-semibold">{p.name}</TableCell>
-                <TableCell>
-                  <Badge variant="outline">{p.category}</Badge>
-                </TableCell>
-                <TableCell>{p.price.toLocaleString()} Ks</TableCell>
-                <TableCell className="text-center">
-                  <Badge variant={p.totalStock < 5 ? "destructive" : "secondary"}>
-                    {p.totalStock}
-                  </Badge>
-                </TableCell>
+                <TableCell>{p.name}</TableCell>
+                <TableCell>{p.categoryName}</TableCell>
+                <TableCell>{p.purchasePrice}</TableCell>
+                <TableCell>{p.salePrice}</TableCell>
+                <TableCell>{p.totalStock}</TableCell>
+
                 <TableCell className="text-right space-x-2">
-
-                  {/* EDIT */}
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button size="sm" variant="outline">Edit</Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Edit Product</DialogTitle>
-                      </DialogHeader>
-                      <Input defaultValue={p.name} onChange={e => setEditProduct({ ...p, name: e.target.value })} />
-                      <Input defaultValue={p.category} onChange={e => setEditProduct({ ...p, category: e.target.value })} />
-                      <Input type="number" defaultValue={p.price} onChange={e => setEditProduct({ ...p, price: Number(e.target.value) })} />
-                      <Input type="number" min={0} defaultValue={p.totalStock} onChange={e => setEditProduct({ ...p, totalStock: Number(e.target.value) })} />
-                      <Button onClick={updateProduct}>Update</Button>
-                    </DialogContent>
-                  </Dialog>
-
-                  {/* ASSIGN */}
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button size="sm" variant="secondary">Assign</Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Assign to Shop</DialogTitle>
-                      </DialogHeader>
-                      <Select onValueChange={setSelectedShop}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select shop" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {shops.map(s => (
-                            <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Input
-                        type="number"
-                        min={1}
-                        max={p.totalStock}
-                        value={assignQty}
-                        onChange={e => setAssignQty(Number(e.target.value))}
-                      />
-                      <Button
-                        disabled={!selectedShop || assignQty > p.totalStock}
-                        onClick={() => assignProduct(p.id)}
-                      >
-                        Assign
-                      </Button>
-                    </DialogContent>
-                  </Dialog>
-
-                  {/* DELETE */}
-                  <Button size="sm" variant="destructive" onClick={() => deleteProduct(p.id)}>
-                    Delete
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    onClick={() => openEditDialog(p)}
+                  >
+                    <Pencil className="h-4 w-4" />
                   </Button>
 
+                  {/* DELETE ALERT */}
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button size="icon" variant="destructive">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>
+                          Delete this product?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => deleteProduct(p.id)}>
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </TableCell>
               </TableRow>
             ))}
@@ -241,28 +243,173 @@ export default function AdminProductPage() {
         </Table>
       </div>
 
-      {/* PAGINATION */}
-      <div className="flex justify-end gap-2">
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={currentPage === 1}
-          onClick={() => setCurrentPage(p => p - 1)}
-        >
-          Prev
-        </Button>
-        <span className="text-sm mt-1">
-          Page {currentPage} / {totalPages}
-        </span>
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={currentPage === totalPages}
-          onClick={() => setCurrentPage(p => p + 1)}
-        >
-          Next
-        </Button>
-      </div>
+      {/* CREATE DIALOG */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Product</DialogTitle>
+          </DialogHeader>
+
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onCreate)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Name</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* CATEGORY */}
+              <FormField
+                control={form.control}
+                name="categoryId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Category</FormLabel>
+
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
+                      </FormControl>
+
+                      <SelectContent>
+                        {categories.map((c) => (
+                          <SelectItem key={c.id} value={c.id.toString()}>
+                            {c.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormLabel>Purchase Price</FormLabel>
+              <Input
+                type="number"
+                placeholder="Purchase Price"
+                {...form.register("purchasePrice")}
+              />
+              <FormLabel>Sale Price</FormLabel>
+              <Input
+                type="number"
+                placeholder="Sale Price"
+                {...form.register("salePrice")}
+              />
+              <FormLabel>Total Stock</FormLabel>
+              <Input
+                type="number"
+                placeholder="Stock"
+                {...form.register("totalStock")}
+              />
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">Create</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* EDIT DIALOG (SEPARATE STATE) */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Product</DialogTitle>
+          </DialogHeader>
+
+          {editProduct && (
+            <div className="space-y-4">
+              <Input
+                value={editProduct.name}
+                onChange={(e) =>
+                  setEditProduct({
+                    ...editProduct,
+                    name: e.target.value,
+                  })
+                }
+              />
+
+              <Select
+                value={editProduct.categoryId.toString()}
+                onValueChange={(v) =>
+                  setEditProduct({
+                    ...editProduct,
+                    categoryId: Number(v),
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+
+                <SelectContent>
+                  {categories.map((c) => (
+                    <SelectItem key={c.id} value={c.id.toString()}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <label className="text-sm font-medium">Purchase Price</label>
+              <Input
+                type="number"
+                value={editProduct.purchasePrice}
+                onChange={(e) =>
+                  setEditProduct({
+                    ...editProduct,
+                    purchasePrice: Number(e.target.value),
+                  })
+                }
+              />
+              <label className="text-sm font-medium">Sale Price</label>
+              <Input
+                type="number"
+                value={editProduct.salePrice}
+                onChange={(e) =>
+                  setEditProduct({
+                    ...editProduct,
+                    salePrice: Number(e.target.value),
+                  })
+                }
+              />
+              <label className="text-sm font-medium">Total Stock</label>
+              <Input
+                type="number"
+                value={editProduct.totalStock}
+                onChange={(e) =>
+                  setEditProduct({
+                    ...editProduct,
+                    totalStock: Number(e.target.value),
+                  })
+                }
+              />
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setEditOpen(false)}>
+                  Cancel
+                </Button>
+
+                <Button onClick={updateProduct}>Update Product</Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </section>
-  )
+  );
 }

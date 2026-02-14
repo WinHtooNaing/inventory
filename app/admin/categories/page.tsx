@@ -20,8 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Plus, Pencil, Trash2, Search } from "lucide-react";
 import { useForm } from "react-hook-form";
-import { shopSchema } from "@/types/shop-schema";
-import z from "zod";
+import z, { set } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Form,
@@ -31,6 +30,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { categorySchema } from "@/types/category-schema";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,57 +46,42 @@ import {
 type Shop = {
   id: number;
   name: string;
-  userId: string;
-  password: string;
 };
 
 const initialShops: Shop[] = [
   {
     id: 1,
-    name: "Aung Mobile",
-    userId: "aungmobile",
-    password: "123456",
+    name: "Sport",
   },
   {
     id: 2,
-    name: "Hlaing Store",
-    userId: "hlaingstore",
-    password: "123456",
+    name: "Electronics",
   },
 ];
 
-const ShopPage = () => {
+export default function CategoriesPage() {
   const [open, setOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
-  const form = useForm<z.infer<typeof shopSchema>>({
-    resolver: zodResolver(shopSchema),
+  const form = useForm<z.infer<typeof categorySchema>>({
+    resolver: zodResolver(categorySchema),
     defaultValues: {
       name: "",
-      userId: "",
-      password: "",
     },
   });
-  const onSubmit = (values: z.infer<typeof shopSchema>) => {
-    const { name, userId, password } = values;
-    // execute({ email, password });
-    console.log("Shop` submitted:", { name, userId, password });
+  const onSubmit = (values: z.infer<typeof categorySchema>) => {
+    const { name } = values;
+    console.log("Category submitted:", { name });
   };
-  const onSubmitEdit = (values: z.infer<typeof shopSchema>) => {
-    const { name, userId, password } = values;
-    // execute({ email, password });
-    console.log("Shop` submitted:", { name, userId, password });
+  const onSubmitEdit = (values: z.infer<typeof categorySchema>) => {
+    const { name } = values;
+    console.log("Category edited:", { name });
   };
   return (
     <section className="p-6">
-      <h1 className="text-2xl font-bold mb-6">Shop Branch Management</h1>
+      <h1 className="text-2xl font-bold mb-6">Category Management</h1>
 
       {/* Top Bar */}
       <div className="flex justify-between items-center mb-4">
-        <div className="relative w-72">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search shop..." className="pl-8" />
-        </div>
-
         <Button onClick={() => setOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Add Shop
@@ -108,8 +93,7 @@ const ShopPage = () => {
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
-              <TableHead>Shop Name</TableHead>
-              <TableHead>UserId</TableHead>
+              <TableHead>Category Name</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -129,7 +113,6 @@ const ShopPage = () => {
             {initialShops.map((shop) => (
               <TableRow key={shop.id} className="hover:bg-muted/40">
                 <TableCell className="font-medium">{shop.name}</TableCell>
-                <TableCell className="font-medium">{shop.userId}</TableCell>
                 <TableCell className="text-right space-x-2">
                   <Button
                     size="icon"
@@ -174,7 +157,7 @@ const ShopPage = () => {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{"Add Shop"}</DialogTitle>
+            <DialogTitle>{"Add Category"}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-3">
@@ -187,11 +170,11 @@ const ShopPage = () => {
                       name="name"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Name</FormLabel>
+                          <FormLabel>Category Name</FormLabel>
                           <FormControl>
                             <Input
                               type="text"
-                              placeholder="Shop name"
+                              placeholder="Category name"
                               {...field}
                             />
                           </FormControl>
@@ -202,46 +185,6 @@ const ShopPage = () => {
                     />
                   </div>
 
-                  <div className="grid ">
-                    <FormField
-                      control={form.control}
-                      name="userId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>UserId</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="text"
-                              placeholder="Shop userId"
-                              {...field}
-                            />
-                          </FormControl>
-
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  <div className="grid ">
-                    <FormField
-                      control={form.control}
-                      name="password"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Password</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="password"
-                              placeholder="Shop password"
-                              {...field}
-                            />
-                          </FormControl>
-
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
                   <DialogFooter>
                     <Button variant="outline" onClick={() => setOpen(false)}>
                       Cancel
@@ -259,7 +202,7 @@ const ShopPage = () => {
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{"Edit Shop"}</DialogTitle>
+            <DialogTitle>{"Edit Category"}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-3">
@@ -276,7 +219,7 @@ const ShopPage = () => {
                           <FormControl>
                             <Input
                               type="text"
-                              placeholder="Shop name"
+                              placeholder="Category name"
                               {...field}
                             />
                           </FormControl>
@@ -287,51 +230,11 @@ const ShopPage = () => {
                     />
                   </div>
 
-                  <div className="grid ">
-                    <FormField
-                      control={form.control}
-                      name="userId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>UserId</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="text"
-                              placeholder="Shop userId"
-                              {...field}
-                            />
-                          </FormControl>
-
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  <div className="grid ">
-                    <FormField
-                      control={form.control}
-                      name="password"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Password</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="password"
-                              placeholder="Shop password"
-                              {...field}
-                            />
-                          </FormControl>
-
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
                   <DialogFooter>
                     <Button variant="outline" onClick={() => setOpen(false)}>
                       Cancel
                     </Button>
-                    <Button type="submit">{"Edit Shop"}</Button>
+                    <Button type="submit">{"Edit Category"}</Button>
                   </DialogFooter>
                 </div>
               </form>
@@ -341,6 +244,4 @@ const ShopPage = () => {
       </Dialog>
     </section>
   );
-};
-
-export default ShopPage;
+}
