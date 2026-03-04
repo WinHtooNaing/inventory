@@ -1,3 +1,4 @@
+"use client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,9 +10,33 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/context/AuthContext";
 import { CreditCard, LogOut, User } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export function UserNav() {
+  const { user } = useAuth();
+  const [userInfo, setUserInfo] = useState({
+    name: "",
+    userId: "",
+    role: "",
+  });
+
+  const handleLogout = () => {
+    localStorage.removeItem("user");
+    window.location.href = "/";
+  };
+  const handleAccount = () => {
+    window.location.href = "/admin/settings";
+  };
+
+  useEffect(() => {
+    setUserInfo({
+      name: user?.name || "",
+      userId: user?.userId || "",
+      role: user?.role || "",
+    });
+  }, [user]);
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -26,7 +51,7 @@ export function UserNav() {
               alt="User Image"
               className="object-cover"
             />
-            <AvatarFallback>Win</AvatarFallback>
+            <AvatarFallback>{userInfo.name.charAt(0)}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
@@ -46,21 +71,23 @@ export function UserNav() {
             <AvatarFallback>Win</AvatarFallback>
           </Avatar>
           <div className="grid flex-1 text-left text-sm leading-tight">
-            <p className="font-medium truncate">Shune</p>
+            <p className="font-medium truncate">{userInfo.name}</p>
             <p className="text-muted-foreground truncate text-xs">
-              slaeseesir@gmail.com
+              {userInfo.userId}
             </p>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuGroup>
-          <DropdownMenuItem>
-            <User />
-            Account
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
+        {userInfo.role === "ADMIN" && (
+          <DropdownMenuGroup onClick={handleAccount}>
+            <DropdownMenuItem>
+              <User />
+              Account
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+        )}
         <DropdownMenuSeparator />
-        <DropdownMenuItem>
+        <DropdownMenuItem onClick={handleLogout}>
           <LogOut />
           Logout
         </DropdownMenuItem>

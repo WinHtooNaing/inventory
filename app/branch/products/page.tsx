@@ -1,7 +1,7 @@
-"use client"
+"use client";
 
-import React, { useState } from "react"
-import { Input } from "@/components/ui/input"
+import React, { useState, useEffect } from "react";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -9,39 +9,107 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/context/AuthContext";
 
-const PRODUCTS_PER_PAGE = 5
+/* ---------------- TYPES ---------------- */
+
+type ApiProduct = {
+  purchasePrice: number;
+  salePrice: number;
+  quantity: number;
+  productName: string;
+  productId: number;
+  branchId: number;
+};
+
+type Product = {
+  id: number;
+  name: string;
+  price: number;
+  qty: number;
+};
+
+const PRODUCTS_PER_PAGE = 5;
 
 export default function ProductPage() {
-  const products = [
-    { id: 1, name: "Football Jersey", qty: 10 },
-    { id: 2, name: "Boots", qty: 2 },
-    { id: 3, name: "Socks", qty: 8 },
-    { id: 4, name: "Gloves", qty: 1 },
-    { id: 5, name: "Cap", qty: 12 },
-    { id: 6, name: "Bag", qty: 4 },
-    { id: 7, name: "Water Bottle", qty: 20 },
-  ]
+  const { user } = useAuth();
 
-  const [search, setSearch] = useState("")
-  const [currentPage, setCurrentPage] = useState(1)
+  const [userId, setUserId] = useState<number | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [search, setSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [loading, setLoading] = useState(false);
 
-  /** FILTER (no useMemo) */
-  const filteredProducts = products.filter(p =>
-    p.name.toLowerCase().includes(search.toLowerCase())
-  )
+  /* ---------------- FETCH PRODUCTS ---------------- */
 
-  /** PAGINATION */
-  const totalPages = Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE)
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
 
-  const startIndex = (currentPage - 1) * PRODUCTS_PER_PAGE
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/branch-products/${userId}`,
+      );
+
+      if (!res.ok) throw new Error("Failed to fetch products");
+
+      const data: ApiProduct[] = await res.json();
+
+      console.log("API RAW => ", data);
+
+      // 🔥 API → UI Mapping
+      const formatted: Product[] = data.map((p) => ({
+        id: p.productId,
+        name: p.productName,
+        price: p.salePrice,
+        qty: p.quantity,
+      }));
+
+      setProducts(formatted);
+    } catch (err) {
+      console.log("Fetch error => ", err);
+      setProducts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* ---------------- GET USER ID ---------------- */
+
+  useEffect(() => {
+    if (user?.id) {
+      setUserId(user.id);
+    }
+  }, [user]);
+
+  /* ---------------- FETCH WHEN USER READY ---------------- */
+
+  useEffect(() => {
+    if (userId) {
+      fetchProducts();
+    }
+  }, [userId]);
+
+  /* ---------------- SEARCH ---------------- */
+
+  const filteredProducts = products.filter((p) =>
+    (p.name || "").toLowerCase().includes(search.toLowerCase()),
+  );
+
+  /* ---------------- PAGINATION ---------------- */
+
+  const totalPages = Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE);
+
+  const startIndex = (currentPage - 1) * PRODUCTS_PER_PAGE;
+
   const paginatedProducts = filteredProducts.slice(
     startIndex,
-    startIndex + PRODUCTS_PER_PAGE
-  )
+    startIndex + PRODUCTS_PER_PAGE,
+  );
+
+  /* ---------------- UI ---------------- */
 
   return (
     <section className="p-6">
@@ -52,9 +120,9 @@ export default function ProductPage() {
         <Input
           placeholder="Search product..."
           value={search}
-          onChange={e => {
-            setSearch(e.target.value)
-            setCurrentPage(1)
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setCurrentPage(1);
           }}
         />
       </div>
@@ -65,28 +133,41 @@ export default function ProductPage() {
           <TableHeader className="bg-muted/50">
             <TableRow>
               <TableHead>Product</TableHead>
+              <TableHead className="text-center">Price</TableHead>
               <TableHead className="text-center">Qty</TableHead>
               <TableHead className="text-center">Status</TableHead>
             </TableRow>
           </TableHeader>
 
           <TableBody>
-            {paginatedProducts.map(p => (
-              <TableRow key={p.id}>
-                <TableCell className="font-medium">{p.name}</TableCell>
-                <TableCell className="text-center">{p.qty}</TableCell>
-                <TableCell className="text-center">
-                  <Badge variant={p.qty < 5 ? "destructive" : "secondary"}>
-                    {p.qty < 5 ? "Low Stock" : "OK"}
-                  </Badge>
+            {loading && (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center py-6">
+                  Loading...
                 </TableCell>
               </TableRow>
-            ))}
+            )}
 
-            {paginatedProducts.length === 0 && (
+            {!loading &&
+              paginatedProducts.map((p) => (
+                <TableRow key={p.id}>
+                  <TableCell className="font-medium">{p.name}</TableCell>
+                  <TableCell className="text-center">
+                    {p.price.toLocaleString()}
+                  </TableCell>
+                  <TableCell className="text-center">{p.qty}</TableCell>
+                  <TableCell className="text-center">
+                    <Badge variant={p.qty < 5 ? "destructive" : "secondary"}>
+                      {p.qty < 5 ? "Low Stock" : "OK"}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              ))}
+
+            {!loading && paginatedProducts.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={3}
+                  colSpan={4}
                   className="text-center py-6 text-muted-foreground"
                 >
                   No products found
@@ -122,5 +203,5 @@ export default function ProductPage() {
         </Button>
       </div>
     </section>
-  )
+  );
 }

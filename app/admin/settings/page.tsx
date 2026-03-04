@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   adminProfileSchema,
   adminPasswordSchema,
@@ -19,71 +19,129 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/context/AuthContext";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 export default function AdminSettingsPage() {
-  const [admin, setAdmin] = useState({
-    name: "Main Admin",
-    userId: "admin01",
+  const { user, setUser } = useAuth();
+
+  const [profileForm, setProfileForm] = useState({
+    name: "",
+    userId: "",
   });
 
-  const [form, setForm] = useState({
-    name: admin.name,
-    userId: admin.userId,
+  const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
   });
-
   const [errors, setErrors] = useState<any>({});
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
 
-  // ✅ PROFILE UPDATE
-  const updateProfile = () => {
-    const result = adminProfileSchema.safeParse({
-      name: form.name,
-      userId: form.userId,
-    });
+  const router = useRouter();
+
+  const forceLogout = () => {
+    localStorage.clear(); // or removeItem("token")
+    setUser(null);
+    router.push("/");
+  };
+  const API = "http://localhost:8080/admin";
+
+  /* ================= PROFILE UPDATE ================= */
+
+  const updateProfile = async () => {
+    const result = adminProfileSchema.safeParse(profileForm);
 
     if (!result.success) {
       setErrors(result.error.flatten().fieldErrors);
       return;
     }
 
-    setErrors({});
+    setProfileLoading(true);
 
-    // ✅ API READY STRUCTURE
-    const payload = {
-      name: form.name,
-      userId: form.userId,
-    };
+    try {
+      const res = await fetch(`${API}/update-info`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(profileForm),
+      });
 
-    console.log("PROFILE API PAYLOAD =>", payload);
+      const data = await res.json();
 
-    setAdmin(payload);
+      if (data.success) {
+        forceLogout();
+        toast.success("Profile Updated", {
+          style: {
+            background: "#16a34a", // green
+            color: "#fff",
+          },
+        });
+      }
+    } catch (error) {
+      toast.error("Server Error");
+    }
+
+    setProfileLoading(false);
   };
+  /* ================= PASSWORD UPDATE ================= */
 
-  // ✅ PASSWORD UPDATE
-  const updatePassword = () => {
-    const result = adminPasswordSchema.safeParse({
-      currentPassword: form.currentPassword,
-      newPassword: form.newPassword,
-      confirmPassword: form.confirmPassword,
-    });
+  const updatePassword = async () => {
+    const result = adminPasswordSchema.safeParse(passwordForm);
 
     if (!result.success) {
       setErrors(result.error.flatten().fieldErrors);
       return;
     }
 
-    setErrors({});
+    setPasswordLoading(true);
 
-    // ✅ API READY STRUCTURE
-    const payload = {
-      currentPassword: form.currentPassword,
-      newPassword: form.newPassword,
-    };
+    try {
+      const res = await fetch(`${API}/change-password`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          oldPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword,
+        }),
+      });
 
-    console.log("PASSWORD API PAYLOAD =>", payload);
+      const data = await res.json();
+
+      if (data.success) {
+        forceLogout();
+        toast.success(data.message, {
+          style: {
+            background: "#16a34a", // green
+            color: "#fff",
+          },
+        });
+      } else {
+        toast.error(data.message, {
+          style: {
+            background: "#dc2626", // red
+            color: "#fff",
+          },
+        });
+      }
+    } catch (error) {
+      toast.error("Server Error");
+      console.log(error);
+    }
+
+    setPasswordLoading(false);
   };
+  useEffect(() => {
+    if (user) {
+      setProfileForm({
+        name: user.name,
+        userId: user.userId,
+      });
+    }
+  }, [user]);
+
+  /* ================= UI ================= */
 
   return (
     <section className="p-6 max-w-4xl">
@@ -100,8 +158,10 @@ export default function AdminSettingsPage() {
           <div className="space-y-2">
             <Label>Name</Label>
             <Input
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              value={profileForm.name}
+              onChange={(e) =>
+                setProfileForm({ ...profileForm, name: e.target.value })
+              }
             />
             {errors?.name && (
               <p className="text-red-500 text-sm">{errors.name[0]}</p>
@@ -111,8 +171,10 @@ export default function AdminSettingsPage() {
           <div className="space-y-2">
             <Label>User ID</Label>
             <Input
-              value={form.userId}
-              onChange={(e) => setForm({ ...form, userId: e.target.value })}
+              value={profileForm.userId}
+              onChange={(e) =>
+                setProfileForm({ ...profileForm, userId: e.target.value })
+              }
             />
             {errors?.userId && (
               <p className="text-red-500 text-sm">{errors.userId[0]}</p>
@@ -120,7 +182,9 @@ export default function AdminSettingsPage() {
           </div>
 
           <div className="flex justify-end">
-            <Button onClick={updateProfile}>Save Changes</Button>
+            <Button disabled={profileLoading} onClick={updateProfile}>
+              {profileLoading ? "Saving..." : "Save Changes"}
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -137,8 +201,12 @@ export default function AdminSettingsPage() {
             <Label>Current Password</Label>
             <Input
               type="password"
+              value={passwordForm.currentPassword}
               onChange={(e) =>
-                setForm({ ...form, currentPassword: e.target.value })
+                setPasswordForm({
+                  ...passwordForm,
+                  currentPassword: e.target.value,
+                })
               }
             />
             {errors?.currentPassword && (
@@ -154,18 +222,29 @@ export default function AdminSettingsPage() {
             <Label>New Password</Label>
             <Input
               type="password"
+              value={passwordForm.newPassword}
               onChange={(e) =>
-                setForm({ ...form, newPassword: e.target.value })
+                setPasswordForm({
+                  ...passwordForm,
+                  newPassword: e.target.value,
+                })
               }
             />
+            {errors?.newPassword && (
+              <p className="text-red-500 text-sm">{errors.newPassword[0]}</p>
+            )}
           </div>
 
           <div className="space-y-2">
             <Label>Confirm New Password</Label>
             <Input
               type="password"
+              value={passwordForm.confirmPassword}
               onChange={(e) =>
-                setForm({ ...form, confirmPassword: e.target.value })
+                setPasswordForm({
+                  ...passwordForm,
+                  confirmPassword: e.target.value,
+                })
               }
             />
             {errors?.confirmPassword && (
@@ -176,9 +255,13 @@ export default function AdminSettingsPage() {
           </div>
 
           <div className="flex justify-between items-center">
-            <Badge variant="secondary">Last updated: just now</Badge>
-            <Button variant="destructive" onClick={updatePassword}>
-              Update Password
+            <Badge variant="secondary">Security Settings</Badge>
+            <Button
+              disabled={passwordLoading}
+              variant="destructive"
+              onClick={updatePassword}
+            >
+              {passwordLoading ? "Updating..." : "Update Password"}
             </Button>
           </div>
         </CardContent>

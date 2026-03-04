@@ -14,31 +14,44 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/context/AuthContext";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 /* ---------------- TYPES ---------------- */
 
 type Product = {
-  id: number;
-  name: string;
-  price: number;
-  qty: number;
+  productId: number;
+  productName: string;
+  salePrice: number;
+  quantity: number;
+  purchasePrice: number;
+  branchId: number;
 };
-
 type CartItem = {
-  id: number;
-  name: string;
-  price: number;
+  productId: number;
+  productName: string;
+  salePrice: number;
   qty: number;
 };
 
 export default function ShopSalesPage() {
   /* ---------------- STATE ---------------- */
 
+  const { user } = useAuth();
+  const [userId, setUserId] = useState<number | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
 
   const [search, setSearch] = useState("");
-
+  const [openSuccess, setOpenSuccess] = useState(false);
   const [page, setPage] = useState(1);
   const limit = 5;
 
@@ -46,7 +59,9 @@ export default function ShopSalesPage() {
 
   const fetchProducts = async () => {
     try {
-      const res = await fetch("/api/products");
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/branch-products/${userId}`,
+      );
 
       if (!res.ok) throw new Error("Failed to fetch products");
 
@@ -61,13 +76,21 @@ export default function ShopSalesPage() {
   };
 
   useEffect(() => {
-    fetchProducts();
-  }, []);
+    if (user?.id) {
+      setUserId(user.id);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (userId) {
+      fetchProducts();
+    }
+  }, [userId]);
 
   /* ---------------- FRONTEND SEARCH ---------------- */
 
   const filteredProducts = products.filter((p) =>
-    p.name.toLowerCase().includes(search.toLowerCase()),
+    p.productName.toLowerCase().includes(search.toLowerCase()),
   );
 
   /* ---------------- FRONTEND PAGINATION ---------------- */
@@ -82,15 +105,17 @@ export default function ShopSalesPage() {
   /* ---------------- CART ---------------- */
 
   const addToCart = (product: Product) => {
-    if (product.qty <= 0) return;
+    if (product.quantity <= 0) return;
 
-    const exist = cart.find((c) => c.id === product.id);
+    const exist = cart.find((c) => c.productId === product.productId);
 
     if (exist) {
-      if (exist.qty >= product.qty) return;
+      if (exist.qty >= product.quantity) return;
 
       setCart(
-        cart.map((c) => (c.id === product.id ? { ...c, qty: c.qty + 1 } : c)),
+        cart.map((c) =>
+          c.productId === product.productId ? { ...c, qty: c.qty + 1 } : c,
+        ),
       );
     } else {
       setCart([...cart, { ...product, qty: 1 }]);
@@ -98,18 +123,20 @@ export default function ShopSalesPage() {
   };
 
   const increaseQty = (id: number) => {
-    const product = products.find((p) => p.id === id);
-    const item = cart.find((c) => c.id === id);
+    const product = products.find((p) => p.productId === id);
+    const item = cart.find((c) => c.productId === id);
 
-    if (!product || !item || item.qty >= product.qty) return;
+    if (!product || !item || item.qty >= product.quantity) return;
 
-    setCart(cart.map((c) => (c.id === id ? { ...c, qty: c.qty + 1 } : c)));
+    setCart(
+      cart.map((c) => (c.productId === id ? { ...c, qty: c.qty + 1 } : c)),
+    );
   };
 
   const decreaseQty = (id: number) => {
     setCart(
       cart
-        .map((c) => (c.id === id ? { ...c, qty: c.qty - 1 } : c))
+        .map((c) => (c.productId === id ? { ...c, qty: c.qty - 1 } : c))
         .filter((c) => c.qty > 0),
     );
   };
@@ -117,39 +144,49 @@ export default function ShopSalesPage() {
   /* ---------------- CHECKOUT ---------------- */
 
   const checkout = async () => {
+    if (!userId) {
+      alert("Branch not found");
+      return;
+    }
+
     try {
       const payload = {
+        branchId: userId,
         items: cart.map((c) => ({
-          productId: c.id,
-          qty: c.qty,
-          price: c.price,
+          productId: c.productId,
+          quantity: c.qty,
         })),
-        total: cart.reduce((sum, i) => sum + i.price * i.qty, 0),
       };
 
-      console.log("SALE DATA =>", payload);
-
-      const res = await fetch("/api/sales", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/branch-sale/checkout`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
         },
-        body: JSON.stringify(payload),
-      });
+      );
 
-      if (!res.ok) throw new Error("Sale failed");
+      const data = await res.json();
 
-      alert("✅ Sale saved successfully");
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Checkout failed");
+      }
+
+      // alert(`✅ Sale Completed\nTotal: ${data.grandTotal} MMK`);
+      setOpenSuccess(true);
 
       setCart([]);
-      fetchProducts(); // refresh stock
-    } catch (err) {
-      console.log("SALE ERROR =>", err);
-      alert("❌ Sale failed");
+      fetchProducts();
+    } catch (err: any) {
+      console.log("CHECKOUT ERROR =>", err);
+      alert(`❌ ${err.message}`);
     }
   };
 
-  const total = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
+  const total = cart.reduce((sum, i) => sum + i.salePrice * i.qty, 0);
 
   /* ---------------- UI ---------------- */
 
@@ -180,18 +217,18 @@ export default function ShopSalesPage() {
 
           <TableBody>
             {paginatedProducts.map((p) => (
-              <TableRow key={p.id}>
-                <TableCell>{p.name}</TableCell>
-                <TableCell>{p.price.toLocaleString()}</TableCell>
+              <TableRow key={p.productId}>
+                <TableCell>{p.productName}</TableCell>
+                <TableCell>{p.salePrice.toLocaleString()}</TableCell>
                 <TableCell>
-                  <Badge variant={p.qty < 5 ? "destructive" : "secondary"}>
-                    {p.qty}
+                  <Badge variant={p.quantity < 5 ? "destructive" : "secondary"}>
+                    {p.quantity}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right">
                   <Button
                     size="sm"
-                    disabled={p.qty === 0}
+                    disabled={p.quantity === 0}
                     onClick={() => addToCart(p)}
                   >
                     Add
@@ -241,20 +278,28 @@ export default function ShopSalesPage() {
 
             <TableBody>
               {cart.map((c) => (
-                <TableRow key={c.id}>
-                  <TableCell>{c.name}</TableCell>
+                <TableRow key={c.productId}>
+                  <TableCell>{c.productName}</TableCell>
                   <TableCell>
                     <div className="flex gap-2">
-                      <Button size="sm" onClick={() => decreaseQty(c.id)}>
+                      <Button
+                        size="sm"
+                        onClick={() => decreaseQty(c.productId)}
+                      >
                         -
                       </Button>
                       {c.qty}
-                      <Button size="sm" onClick={() => increaseQty(c.id)}>
+                      <Button
+                        size="sm"
+                        onClick={() => increaseQty(c.productId)}
+                      >
                         +
                       </Button>
                     </div>
                   </TableCell>
-                  <TableCell>{(c.qty * c.price).toLocaleString()}</TableCell>
+                  <TableCell>
+                    {(c.qty * c.salePrice).toLocaleString()}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -273,6 +318,21 @@ export default function ShopSalesPage() {
           </Button>
         </div>
       </div>
+      <AlertDialog open={openSuccess} onOpenChange={setOpenSuccess}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>✅ Sale Completed</AlertDialogTitle>
+            <AlertDialogDescription>
+              The sale has been saved successfully.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setOpenSuccess(false)}>
+              OK
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }

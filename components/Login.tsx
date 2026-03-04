@@ -1,11 +1,6 @@
+"use client";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   Form,
@@ -20,11 +15,16 @@ import z from "zod";
 import { loginSchema } from "@/types/login-schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-// import { login } from "@/api/login"
-// import { useAction } from "next-safe-action/hooks";
+import { useAuth } from "@/context/AuthContext";
+import { useState } from "react";
+import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+import { Loader2 } from "lucide-react";
 export function Login() {
-  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
+  const router = useRouter();
+  const { setUser, user } = useAuth();
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -34,25 +34,40 @@ export function Login() {
   });
 
   const onSubmit = async (values: z.infer<typeof loginSchema>) => {
-    const response = await fetch(`http://localhost:8080/api/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(values),
-    });
-    const data = await response.json();
-    console.log(data);
-    // if (response.ok) {
-    //   localStorage.setItem("user", JSON.stringify(data));
-    //   // Role အလိုက် Redirect လုပ်ခြင်း
-    //   if (data.role === "ADMIN") {
-    //     router.push("/admin");
-    //     // သို့မဟုတ် router.push("/admin")
-    //   } else if (data.role === "BRANCH") {
-    //     router.push("/branch/sale");
-    //   }
-    // } else {
-    //   alert(data.message || "Login failed");
-    // }
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/auth/login`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(values),
+        },
+      );
+      const data = await response.json();
+      if (!data.success) {
+        setError(data.message || "Login failed");
+        setLoading(false);
+        return;
+      }
+      /* ---------------- SAVE USER ---------------- */
+      localStorage.setItem("user", JSON.stringify(data));
+      setUser(data);
+      /* ---------------- ROLE REDIRECT ---------------- */
+      if (data.role === "ADMIN") {
+        router.push("/admin");
+      } else if (data.role === "BRANCH") {
+        router.push("/branch/sale");
+      } else {
+        router.push("/");
+      }
+    } catch (error) {
+      console.log("LOGIN ERROR =>", error);
+      setError("Server error");
+    } finally {
+      setLoading(false);
+    }
   };
   return (
     <>
@@ -61,6 +76,12 @@ export function Login() {
           <CardTitle>Login to your account</CardTitle>
         </CardHeader>
         <CardContent>
+          {error && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>
               <div className="flex flex-col gap-6">
@@ -104,8 +125,15 @@ export function Login() {
                     )}
                   />
                 </div>
-                <Button type="submit" className="w-full">
-                  Login
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Logging in...
+                    </>
+                  ) : (
+                    "Login"
+                  )}
                 </Button>
               </div>
             </form>

@@ -1,57 +1,112 @@
-"use client"
-import React from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table"
-import { ShoppingCart, Store, Package, DollarSign, AlertTriangle } from "lucide-react"
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts"
+"use client";
 
-// ===== Fake Data =====
-const dashboardData = {
-  totalShops: 5,
-  totalProducts: 18,
-  remainingStockValue: 1250000,
-  totalSoldValue: 980000,
-}
+import React, { useEffect, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableHeader,
+  TableRow,
+  TableHead,
+  TableBody,
+  TableCell,
+} from "@/components/ui/table";
+import { ShoppingCart, Store, Package, AlertTriangle } from "lucide-react";
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 
-const salesData = [
-  { day: "Mon", sales: 120000 },
-  { day: "Tue", sales: 90000 },
-  { day: "Wed", sales: 150000 },
-  { day: "Thu", sales: 110000 },
-  { day: "Fri", sales: 200000 },
-  { day: "Sat", sales: 180000 },
-  { day: "Sun", sales: 130000 },
-]
-
-const topProducts = [
-  { name: "Coca Cola", sold: 120 },
-  { name: "Pepsi", sold: 95 },
-  { name: "Potato Chips", sold: 80 },
-]
-
-const lowStockProducts = [
-  { name: "Sprite", qty: 3 },
-  { name: "Energy Drink", qty: 2 },
-]
-
-const shopPerformance = [
-  { shop: "Shop A", sales: 420000 },
-  { shop: "Shop B", sales: 310000 },
-  { shop: "Shop C", sales: 250000 },
-]
+const API = process.env.NEXT_PUBLIC_API_URL;
 
 export default function AdminDashboardPage() {
+  const [summary, setSummary] = useState({});
+  const [salesData, setSalesData] = useState([]);
+  const [topProducts, setTopProducts] = useState([]);
+  const [lowStockProducts, setLowStockProducts] = useState([]);
+  const [shopPerformance, setShopPerformance] = useState([]);
+
+  const fetchDashboard = async () => {
+    try {
+      const [summaryRes, salesRes, topRes, lowRes, shopRes] = await Promise.all(
+        [
+          fetch(`${API}/dashboard/summary`),
+          fetch(`${API}/dashboard/daily-sales?days=7`),
+          fetch(`${API}/dashboard/top-products?days=30&limit=5`),
+          fetch(`${API}/dashboard/low-stock?threshold=5`),
+          fetch(`${API}/dashboard/shop-performance?days=30`),
+        ],
+      );
+
+      const summaryData = await summaryRes.json();
+      const sales = await salesRes.json();
+      const top = await topRes.json();
+      const low = await lowRes.json();
+      const shop = await shopRes.json();
+      console.log(sales);
+      setSummary(summaryData);
+
+      // Chart format
+      setSalesData(
+        sales.map((s: any) => ({
+          day: new Date(s.saleDate).toLocaleDateString(),
+          sales: s.totalValue,
+        })),
+      );
+
+      setTopProducts(top);
+      setLowStockProducts(low);
+
+      setShopPerformance(
+        shop.map((s: any) => ({
+          shop: s.branchName,
+          sales: s.totalValue,
+        })),
+      );
+    } catch (err) {
+      console.log("Dashboard fetch error", err);
+    }
+  };
+  useEffect(() => {
+    fetchDashboard();
+  }, []);
+
   return (
     <section className="p-6 space-y-8">
       <h1 className="text-2xl font-bold">Dashboard</h1>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <DashboardCard title="Total Shops" value={dashboardData.totalShops} icon={<Store />} badge="Active" />
-        <DashboardCard title="Total Products" value={dashboardData.totalProducts} icon={<Package />} badge="Inventory" />
-        <DashboardCard title="Remaining Stock Value" value={`${dashboardData.remainingStockValue.toLocaleString()} Ks`} icon={<DollarSign />} badge="Current" />
-        <DashboardCard title="Total Sold Value" value={`${dashboardData.totalSoldValue.toLocaleString()} Ks`} icon={<ShoppingCart />} badge="Revenue" />
+        <DashboardCard
+          title="Total Shops"
+          value={summary.totalShops || 0}
+          icon={<Store />}
+          badge="Active"
+        />
+        <DashboardCard
+          title="Total Products"
+          value={summary.totalProducts || 0}
+          icon={<Package />}
+          badge="Inventory"
+        />
+        {/* <DashboardCard
+          title="Remaining Stock Value"
+          value={`${(summary.remainingStockValue || 0).toLocaleString()} Ks`}
+          icon={<DollarSign />}
+          badge="Current"
+        /> */}
+        <DashboardCard
+          title="Total Sold Value"
+          value={`${(summary.totalSoldValue || 0).toLocaleString()} Ks`}
+          icon={<ShoppingCart />}
+          badge="Revenue"
+        />
       </div>
 
       {/* Charts */}
@@ -106,11 +161,11 @@ export default function AdminDashboardPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {lowStockProducts.map((p) => (
-                  <TableRow key={p.name}>
-                    <TableCell>{p.name}</TableCell>
+                {lowStockProducts.map((p: any) => (
+                  <TableRow key={p.productId}>
+                    <TableCell>{p.productName}</TableCell>
                     <TableCell>
-                      <Badge variant="destructive">{p.qty}</Badge>
+                      <Badge variant="destructive">{p.arrivalQty}</Badge>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -133,11 +188,11 @@ export default function AdminDashboardPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {topProducts.map((p) => (
-                  <TableRow key={p.name}>
-                    <TableCell>{p.name}</TableCell>
+                {topProducts.map((p: any) => (
+                  <TableRow key={p.productId}>
+                    <TableCell>{p.productName}</TableCell>
                     <TableCell>
-                      <Badge variant="secondary">{p.sold}</Badge>
+                      <Badge variant="secondary">{p.totalQty}</Badge>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -147,10 +202,10 @@ export default function AdminDashboardPage() {
         </Card>
       </div>
     </section>
-  )
+  );
 }
 
-function DashboardCard({ title, value, icon, badge }) {
+function DashboardCard({ title, value, icon, badge }: any) {
   return (
     <Card className="rounded-2xl shadow-sm">
       <CardHeader className="flex flex-row items-center justify-between">
@@ -159,8 +214,10 @@ function DashboardCard({ title, value, icon, badge }) {
       </CardHeader>
       <CardContent>
         <p className="text-3xl font-bold">{value}</p>
-        <Badge variant="secondary" className="mt-2">{badge}</Badge>
+        <Badge variant="secondary" className="mt-2">
+          {badge}
+        </Badge>
       </CardContent>
     </Card>
-  )
+  );
 }

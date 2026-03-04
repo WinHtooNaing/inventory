@@ -46,18 +46,12 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-
+import { Form, FormField } from "@/components/ui/form";
 import { productSchema } from "@/types/product-schema";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 
-/** ================= TYPES ================= */
+/* ================= TYPES ================= */
 
 type Product = {
   id: number;
@@ -66,7 +60,7 @@ type Product = {
   categoryName: string;
   purchasePrice: number;
   salePrice: number;
-  totalStock: number;
+  arrivalQty: number;
 };
 
 type Category = {
@@ -74,18 +68,44 @@ type Category = {
   name: string;
 };
 
+type Branch = {
+  id: number;
+  name: string;
+};
+
+/* ================= API ================= */
+
+const PRODUCT_API = "http://localhost:8080/products";
+const CATEGORY_API = "http://localhost:8080/categories";
+const BRANCH_API = "http://localhost:8080/branches";
+const TRANSFER_API = "http://localhost:8080/branch-products/transfer";
+
 export default function AdminProductPage() {
-  /** ================= STATES ================= */
+  /* ================= STATE ================= */
 
   const [open, setOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [transferOpen, setTransferOpen] = useState(false);
 
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
 
   const [editProduct, setEditProduct] = useState<Product | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
-  /** ================= CREATE FORM ================= */
+  const [transferData, setTransferData] = useState({
+    branchId: 0,
+    quantity: 0,
+  });
+
+  const [searchName, setSearchName] = useState("");
+  const [searchCategory, setSearchCategory] = useState("all");
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
+  /* ================= FORM ================= */
 
   const form = useForm<z.infer<typeof productSchema>>({
     resolver: zodResolver(productSchema),
@@ -98,88 +118,217 @@ export default function AdminProductPage() {
     },
   });
 
-  /** ================= MOCK API ================= */
+  /* ================= LOAD DATA ================= */
+
+  const loadProducts = async () => {
+    const res = await fetch(PRODUCT_API);
+    const data = await res.json();
+    setProducts(data);
+  };
+
+  const loadCategories = async () => {
+    const res = await fetch(CATEGORY_API);
+    const data = await res.json();
+    setCategories(data);
+  };
+
+  const loadBranches = async () => {
+    const res = await fetch(BRANCH_API);
+    const data = await res.json();
+    setBranches(data);
+  };
 
   useEffect(() => {
-    setProducts([
-      {
-        id: 1,
-        name: "Football Jersey",
-        categoryId: 1,
-        categoryName: "Sports",
-        purchasePrice: 20000,
-        salePrice: 25000,
-        totalStock: 20,
-      },
-    ]);
-
-    setCategories([
-      { id: 1, name: "Sports" },
-      { id: 2, name: "Accessories" },
-      { id: 3, name: "Fashion" },
-    ]);
+    loadProducts();
+    loadCategories();
+    loadBranches();
   }, []);
 
-  /** ================= CREATE ================= */
+  /* ================= CREATE ================= */
 
-  const onCreate = (values: z.infer<typeof productSchema>) => {
+  const onCreate = async (values: z.infer<typeof productSchema>) => {
     const payload = {
       name: values.name,
       categoryId: Number(values.categoryId),
       purchasePrice: values.purchasePrice,
       salePrice: values.salePrice,
-      totalStock: values.totalStock,
+      arrivalQty: values.totalStock,
     };
 
-    console.log("CREATE PRODUCT →", payload);
-    setOpen(false);
-    form.reset();
+    const res = await fetch(PRODUCT_API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      toast.success(data.message, {
+        style: {
+          background: "#16a34a", // green
+          color: "#fff",
+        },
+      });
+      loadProducts();
+      setOpen(false);
+      form.reset();
+    } else toast.error(data.message);
   };
 
-  /** ================= EDIT ================= */
+  /* ================= UPDATE ================= */
 
-  const openEditDialog = (product: Product) => {
-    setEditProduct(product);
-    setEditOpen(true);
-  };
-
-  const updateProduct = () => {
+  const updateProduct = async () => {
     if (!editProduct) return;
 
     const payload = {
-      id: editProduct.id,
       name: editProduct.name,
-      categoryId: Number(editProduct.categoryId),
+      categoryId: editProduct.categoryId,
       purchasePrice: editProduct.purchasePrice,
       salePrice: editProduct.salePrice,
-      totalStock: editProduct.totalStock,
+      arrivalQty: editProduct.arrivalQty,
     };
 
-    console.log("UPDATE PRODUCT →", payload);
-    setEditOpen(false);
+    const res = await fetch(`${PRODUCT_API}/${editProduct.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      toast.success(data.message, {
+        style: {
+          background: "#16a34a", // green
+          color: "#fff",
+        },
+      });
+      loadProducts();
+      setEditOpen(false);
+    } else toast.error(data.message);
   };
 
-  /** ================= DELETE ================= */
+  /* ================= DELETE ================= */
 
-  const deleteProduct = (id: number) => {
-    console.log("DELETE PRODUCT ID →", id);
+  const deleteProduct = async (id: number) => {
+    const res = await fetch(`${PRODUCT_API}/${id}`, {
+      method: "DELETE",
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      loadProducts();
+    } else
+      toast.error(data.message, {
+        style: {
+          background: "#dc2626", // red
+          color: "#fff",
+        },
+      });
   };
 
-  /** ================= UI ================= */
+  /* ================= TRANSFER ================= */
+
+  const transferStock = async () => {
+    if (!selectedProduct) return;
+
+    if (transferData.quantity > selectedProduct.arrivalQty) {
+      toast.error("Not enough main stock");
+      return;
+    }
+
+    const payload = {
+      productId: selectedProduct.id,
+      branchId: transferData.branchId,
+      quantity: transferData.quantity,
+    };
+
+    const res = await fetch(TRANSFER_API, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      toast.success(data.message, {
+        style: {
+          background: "#16a34a", // green
+          color: "#fff",
+        },
+      });
+      setTransferOpen(false);
+      loadProducts();
+    } else toast.error(data.message);
+  };
+
+  /* ================= FILTER ================= */
+  const filteredProducts = products.filter((p) => {
+    const matchName = p.name.toLowerCase().includes(searchName.toLowerCase());
+
+    const matchCategory =
+      searchCategory === "all" || p.categoryId.toString() === searchCategory;
+
+    return matchName && matchCategory;
+  });
+
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+
+  const paginatedProducts = filteredProducts.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage,
+  );
+  /* ================= UI ================= */
 
   return (
     <section className="p-6">
       <h1 className="text-2xl font-bold mb-6">Product Management</h1>
 
-      <div className="flex justify-between mb-4">
-        <Button onClick={() => setOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Product
-        </Button>
-      </div>
+      <Button onClick={() => setOpen(true)}>
+        <Plus className="mr-2 h-4 w-4" />
+        Add Product
+      </Button>
 
+      <div className="flex gap-4 mt-4 w-[60%]">
+        {/* Name Search */}
+        <Input
+          placeholder="Search product name..."
+          value={searchName}
+          onChange={(e) => {
+            setSearchName(e.target.value);
+            setCurrentPage(1);
+          }}
+        />
+
+        {/* Category Filter */}
+        <Select
+          value={searchCategory}
+          onValueChange={(v) => {
+            setSearchCategory(v);
+            setCurrentPage(1);
+          }}
+        >
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Filter Category" />
+          </SelectTrigger>
+
+          <SelectContent>
+            <SelectItem value="all">All Categories</SelectItem>
+            {categories.map((c) => (
+              <SelectItem key={c.id} value={c.id.toString()}>
+                {c.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
       {/* TABLE */}
-      <div className="rounded-xl border bg-background shadow-sm">
+      <div className="rounded-xl border mt-4">
         <Table>
           <TableHeader>
             <TableRow>
@@ -193,44 +342,58 @@ export default function AdminProductPage() {
           </TableHeader>
 
           <TableBody>
-            {products.map((p) => (
+            {paginatedProducts.map((p) => (
               <TableRow key={p.id}>
                 <TableCell>{p.name}</TableCell>
                 <TableCell>{p.categoryName}</TableCell>
                 <TableCell>{p.purchasePrice}</TableCell>
                 <TableCell>{p.salePrice}</TableCell>
-                <TableCell>{p.totalStock}</TableCell>
+                <TableCell>{p.arrivalQty}</TableCell>
 
                 <TableCell className="text-right space-x-2">
                   <Button
                     size="icon"
-                    variant="outline"
-                    onClick={() => openEditDialog(p)}
+                    variant="secondary"
+                    onClick={() => {
+                      setSelectedProduct(p);
+                      setTransferOpen(true);
+                    }}
                   >
-                    <Pencil className="h-4 w-4" />
+                    T
                   </Button>
 
-                  {/* DELETE ALERT */}
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    onClick={() => {
+                      setEditProduct(p);
+                      setEditOpen(true);
+                    }}
+                  >
+                    <Pencil size={16} />
+                  </Button>
+
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button size="icon" variant="destructive">
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 size={16} />
                       </Button>
                     </AlertDialogTrigger>
 
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>
-                          Delete this product?
-                        </AlertDialogTitle>
+                        <AlertDialogTitle>Delete Product?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          This action cannot be undone.
+                          Cannot undo this action
                         </AlertDialogDescription>
                       </AlertDialogHeader>
 
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => deleteProduct(p.id)}>
+                        <AlertDialogAction
+                          onClick={() => deleteProduct(p.id)}
+                          variant={"destructive"}
+                        >
                           Delete
                         </AlertDialogAction>
                       </AlertDialogFooter>
@@ -241,9 +404,30 @@ export default function AdminProductPage() {
             ))}
           </TableBody>
         </Table>
+        <div className="flex justify-center gap-2 mt-6">
+          <Button
+            variant="outline"
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPage((p) => p - 1)}
+          >
+            Prev
+          </Button>
+
+          <span className="px-4 py-2">
+            {currentPage} / {totalPages || 1}
+          </span>
+
+          <Button
+            variant="outline"
+            disabled={currentPage === totalPages || totalPages === 0}
+            onClick={() => setCurrentPage((p) => p + 1)}
+          >
+            Next
+          </Button>
+        </div>
       </div>
 
-      {/* CREATE DIALOG */}
+      {/* CREATE */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
@@ -252,62 +436,42 @@ export default function AdminProductPage() {
 
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onCreate)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Name</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* CATEGORY */}
+              <Label>Name</Label>
+              <Input placeholder="Name" {...form.register("name")} />
+              <Label>Category</Label>
               <FormField
                 control={form.control}
                 name="categoryId"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Category</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Category" />
+                    </SelectTrigger>
 
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select category" />
-                        </SelectTrigger>
-                      </FormControl>
-
-                      <SelectContent>
-                        {categories.map((c) => (
-                          <SelectItem key={c.id} value={c.id.toString()}>
-                            {c.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-
-                    <FormMessage />
-                  </FormItem>
+                    <SelectContent>
+                      {categories.map((c) => (
+                        <SelectItem key={c.id} value={c.id.toString()}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 )}
               />
 
-              <FormLabel>Purchase Price</FormLabel>
+              <Label>Purchase Price</Label>
               <Input
                 type="number"
                 placeholder="Purchase Price"
                 {...form.register("purchasePrice")}
               />
-              <FormLabel>Sale Price</FormLabel>
+              <Label>Sale Price</Label>
               <Input
                 type="number"
                 placeholder="Sale Price"
                 {...form.register("salePrice")}
               />
-              <FormLabel>Total Stock</FormLabel>
+              <Label>Total Stock</Label>
               <Input
                 type="number"
                 placeholder="Stock"
@@ -325,22 +489,19 @@ export default function AdminProductPage() {
         </DialogContent>
       </Dialog>
 
-      {/* EDIT DIALOG (SEPARATE STATE) */}
+      {/* EDIT */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit Product</DialogTitle>
           </DialogHeader>
-
           {editProduct && (
             <div className="space-y-4">
+              <Label>Name</Label>
               <Input
                 value={editProduct.name}
                 onChange={(e) =>
-                  setEditProduct({
-                    ...editProduct,
-                    name: e.target.value,
-                  })
+                  setEditProduct({ ...editProduct, name: e.target.value })
                 }
               />
 
@@ -354,7 +515,7 @@ export default function AdminProductPage() {
                 }
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Select Category" />
                 </SelectTrigger>
 
                 <SelectContent>
@@ -365,7 +526,8 @@ export default function AdminProductPage() {
                   ))}
                 </SelectContent>
               </Select>
-              <label className="text-sm font-medium">Purchase Price</label>
+
+              <Label>Purchase Price</Label>
               <Input
                 type="number"
                 value={editProduct.purchasePrice}
@@ -376,7 +538,8 @@ export default function AdminProductPage() {
                   })
                 }
               />
-              <label className="text-sm font-medium">Sale Price</label>
+
+              <Label>Sale Price</Label>
               <Input
                 type="number"
                 value={editProduct.salePrice}
@@ -387,14 +550,15 @@ export default function AdminProductPage() {
                   })
                 }
               />
-              <label className="text-sm font-medium">Total Stock</label>
+
+              <Label>Total Stock</Label>
               <Input
                 type="number"
-                value={editProduct.totalStock}
+                value={editProduct.arrivalQty}
                 onChange={(e) =>
                   setEditProduct({
                     ...editProduct,
-                    totalStock: Number(e.target.value),
+                    arrivalQty: Number(e.target.value),
                   })
                 }
               />
@@ -404,7 +568,66 @@ export default function AdminProductPage() {
                   Cancel
                 </Button>
 
-                <Button onClick={updateProduct}>Update Product</Button>
+                <Button onClick={updateProduct}>Update</Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* TRANSFER */}
+      <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Transfer Stock</DialogTitle>
+          </DialogHeader>
+
+          {selectedProduct && (
+            <div className="space-y-4">
+              <p>Product : {selectedProduct.name}</p>
+              <p>Main Stock : {selectedProduct.arrivalQty}</p>
+
+              <Select
+                onValueChange={(v) =>
+                  setTransferData({
+                    ...transferData,
+                    branchId: Number(v),
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Branch" />
+                </SelectTrigger>
+
+                <SelectContent>
+                  {branches.map((b) => (
+                    <SelectItem key={b.id} value={b.id.toString()}>
+                      {b.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Input
+                type="number"
+                placeholder="Quantity"
+                onChange={(e) =>
+                  setTransferData({
+                    ...transferData,
+                    quantity: Number(e.target.value),
+                  })
+                }
+              />
+
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setTransferOpen(false)}
+                >
+                  Cancel
+                </Button>
+
+                <Button onClick={transferStock}>Transfer</Button>
               </DialogFooter>
             </div>
           )}

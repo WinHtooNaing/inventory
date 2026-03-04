@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -18,9 +18,9 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Plus, Pencil, Trash2, Search } from "lucide-react";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 import { useForm } from "react-hook-form";
-import z, { set } from "zod";
+import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Form,
@@ -42,40 +42,109 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
+import { da } from "zod/v4/locales";
 
 type Shop = {
   id: number;
   name: string;
 };
 
-const initialShops: Shop[] = [
-  {
-    id: 1,
-    name: "Sport",
-  },
-  {
-    id: 2,
-    name: "Electronics",
-  },
-];
-
 export default function CategoriesPage() {
+  const [shops, setShops] = useState<Shop[]>([]);
   const [open, setOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+
   const form = useForm<z.infer<typeof categorySchema>>({
     resolver: zodResolver(categorySchema),
-    defaultValues: {
-      name: "",
-    },
+    defaultValues: { name: "" },
   });
-  const onSubmit = (values: z.infer<typeof categorySchema>) => {
-    const { name } = values;
-    console.log("Category submitted:", { name });
+
+  // ================= LOAD DATA =================
+  const loadCategories = async () => {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/categories`);
+
+    const data = await res.json();
+    setShops(data);
   };
-  const onSubmitEdit = (values: z.infer<typeof categorySchema>) => {
-    const { name } = values;
-    console.log("Category edited:", { name });
+
+  useEffect(() => {
+    loadCategories();
+  }, []);
+
+  // ================= CREATE =================
+  const onSubmit = async (values: z.infer<typeof categorySchema>) => {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/categories`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      toast.success(data.message, {
+        style: {
+          background: "#16a34a", // green
+          color: "#fff",
+        },
+      });
+      loadCategories();
+      setOpen(false);
+      form.reset();
+    } else {
+      toast.error(data.message);
+    }
   };
+
+  // ================= EDIT =================
+  const onSubmitEdit = async (values: z.infer<typeof categorySchema>) => {
+    if (!selectedId) return;
+
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/categories/${selectedId}`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+      },
+    );
+
+    const data = await res.json();
+
+    if (data.success) {
+      toast.success(data.message, {
+        style: {
+          background: "#16a34a", // green
+          color: "#fff",
+        },
+      });
+      loadCategories();
+      setEditOpen(false);
+    } else {
+      toast.error(data.message);
+    }
+  };
+
+  // ================= DELETE =================
+  const handleDelete = async (id: number) => {
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/categories/${id}`,
+      { method: "DELETE" },
+    );
+    const data = await res.json();
+
+    if (data.success) loadCategories();
+    else
+      toast.error(data.message, {
+        style: {
+          background: "#dc2626", // red
+          color: "#fff",
+        },
+      });
+  };
+
   return (
     <section className="p-6">
       <h1 className="text-2xl font-bold mb-6">Category Management</h1>
@@ -84,7 +153,7 @@ export default function CategoriesPage() {
       <div className="flex justify-between items-center mb-4">
         <Button onClick={() => setOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
-          Add Shop
+          Add Category
         </Button>
       </div>
 
@@ -99,28 +168,33 @@ export default function CategoriesPage() {
           </TableHeader>
 
           <TableBody>
-            {initialShops.length === 0 && (
+            {shops.length === 0 && (
               <TableRow>
-                <TableCell
-                  colSpan={5}
-                  className="text-center py-6 text-muted-foreground"
-                >
-                  No shops found
+                <TableCell colSpan={5} className="text-center py-6">
+                  No Category Found
                 </TableCell>
               </TableRow>
             )}
 
-            {initialShops.map((shop) => (
-              <TableRow key={shop.id} className="hover:bg-muted/40">
-                <TableCell className="font-medium">{shop.name}</TableCell>
+            {shops.map((shop) => (
+              <TableRow key={shop.id}>
+                <TableCell>{shop.name}</TableCell>
+
                 <TableCell className="text-right space-x-2">
+                  {/* EDIT */}
                   <Button
                     size="icon"
                     variant="outline"
-                    onClick={() => setEditOpen(true)}
+                    onClick={() => {
+                      setSelectedId(shop.id);
+                      form.setValue("name", shop.name);
+                      setEditOpen(true);
+                    }}
                   >
                     <Pencil className="h-4 w-4" />
                   </Button>
+
+                  {/* DELETE */}
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button size="icon" variant="destructive">
@@ -134,13 +208,16 @@ export default function CategoriesPage() {
                           Are you sure to delete?
                         </AlertDialogTitle>
                         <AlertDialogDescription>
-                          This action cannot be undone.
+                          This action cannot be undone
                         </AlertDialogDescription>
                       </AlertDialogHeader>
 
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction variant={"destructive"}>
+                        <AlertDialogAction
+                          onClick={() => handleDelete(shop.id)}
+                          variant={"destructive"}
+                        >
                           Delete
                         </AlertDialogAction>
                       </AlertDialogFooter>
@@ -153,93 +230,71 @@ export default function CategoriesPage() {
         </Table>
       </div>
 
-      {/* Create Dialog */}
+      {/* CREATE */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{"Add Category"}</DialogTitle>
+            <DialogTitle>Add Category</DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-3">
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)}>
-                <div className="flex flex-col gap-6">
-                  <div className="grid ">
-                    <FormField
-                      control={form.control}
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Category Name</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="text"
-                              placeholder="Category name"
-                              {...field}
-                            />
-                          </FormControl>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)}>
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Category Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Category name" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button type="submit">{"Create"}</Button>
-                  </DialogFooter>
-                </div>
-              </form>
-            </Form>
-          </div>
+              <DialogFooter className="mt-4">
+                <Button variant="outline" onClick={() => setOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">Create</Button>
+              </DialogFooter>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
 
-      {/* Edit Dialog */}
+      {/* EDIT */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{"Edit Category"}</DialogTitle>
+            <DialogTitle>Edit Category</DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-3">
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmitEdit)}>
-                <div className="flex flex-col gap-6">
-                  <div className="grid ">
-                    <FormField
-                      control={form.control}
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Name</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="text"
-                              placeholder="Category name"
-                              {...field}
-                            />
-                          </FormControl>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmitEdit)}>
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Category Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Category name" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button type="submit">{"Edit Category"}</Button>
-                  </DialogFooter>
-                </div>
-              </form>
-            </Form>
-          </div>
+              <DialogFooter className="mt-4">
+                <Button variant="outline" onClick={() => setEditOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">Update</Button>
+              </DialogFooter>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
     </section>

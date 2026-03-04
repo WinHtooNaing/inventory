@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -42,6 +42,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 
 type Shop = {
   id: number;
@@ -50,24 +51,19 @@ type Shop = {
   password: string;
 };
 
-const initialShops: Shop[] = [
-  {
-    id: 1,
-    name: "Aung Mobile",
-    userId: "aungmobile",
-    password: "123456",
-  },
-  {
-    id: 2,
-    name: "Hlaing Store",
-    userId: "hlaingstore",
-    password: "123456",
-  },
-];
-
 const ShopPage = () => {
   const [open, setOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [shops, setShops] = useState<Shop[]>([]);
+  const [selectedShop, setSelectedShop] = useState<Shop | null>(null);
+  const [search, setSearch] = useState("");
+
+  const filteredShops = shops.filter(
+    (shop) =>
+      shop.name.toLowerCase().includes(search.toLowerCase()) ||
+      shop.userId.toLowerCase().includes(search.toLowerCase()),
+  );
+
   const form = useForm<z.infer<typeof shopSchema>>({
     resolver: zodResolver(shopSchema),
     defaultValues: {
@@ -76,16 +72,99 @@ const ShopPage = () => {
       password: "",
     },
   });
-  const onSubmit = (values: z.infer<typeof shopSchema>) => {
-    const { name, userId, password } = values;
-    // execute({ email, password });
-    console.log("Shop` submitted:", { name, userId, password });
+  const onSubmit = async (values: z.infer<typeof shopSchema>) => {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/branches`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setOpen(false);
+        toast.success(data.message, {
+          style: {
+            background: "#16a34a", // green
+            color: "#fff",
+          },
+        });
+        form.reset();
+        fetchShops();
+      } else {
+        toast.error(data.message);
+      }
+    } catch (err) {
+      console.log(err);
+    }
   };
-  const onSubmitEdit = (values: z.infer<typeof shopSchema>) => {
-    const { name, userId, password } = values;
-    // execute({ email, password });
-    console.log("Shop` submitted:", { name, userId, password });
+  const onSubmitEdit = async (values: z.infer<typeof shopSchema>) => {
+    if (!selectedShop) return;
+
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/branches/${selectedShop.id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(values),
+        },
+      );
+
+      const data = await res.json();
+
+      if (data.success) {
+        setEditOpen(false);
+        setSelectedShop(null);
+        toast.success(data.message, {
+          style: {
+            background: "#16a34a", // green
+            color: "#fff",
+          },
+        });
+        fetchShops();
+      } else {
+        toast.error(data.message);
+      }
+    } catch (err) {
+      console.log(err);
+    }
   };
+  const deleteShop = async (id: number) => {
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/branches/${id}`,
+        {
+          method: "DELETE",
+        },
+      );
+
+      const data = await res.json();
+
+      if (data.success) {
+        fetchShops();
+      } else {
+        alert(data.message);
+      }
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
+  const fetchShops = async () => {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/branches`);
+      const data = await res.json();
+      setShops(data);
+    } catch (err) {
+      console.log(err);
+    }
+  };
+  useEffect(() => {
+    fetchShops();
+  }, []);
+
   return (
     <section className="p-6">
       <h1 className="text-2xl font-bold mb-6">Shop Branch Management</h1>
@@ -94,7 +173,12 @@ const ShopPage = () => {
       <div className="flex justify-between items-center mb-4">
         <div className="relative w-72">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search shop..." className="pl-8" />
+          <Input
+            placeholder="Search shop..."
+            className="pl-8"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </div>
 
         <Button onClick={() => setOpen(true)}>
@@ -115,7 +199,7 @@ const ShopPage = () => {
           </TableHeader>
 
           <TableBody>
-            {initialShops.length === 0 && (
+            {filteredShops.length === 0 && (
               <TableRow>
                 <TableCell
                   colSpan={5}
@@ -126,7 +210,7 @@ const ShopPage = () => {
               </TableRow>
             )}
 
-            {initialShops.map((shop) => (
+            {filteredShops.map((shop) => (
               <TableRow key={shop.id} className="hover:bg-muted/40">
                 <TableCell className="font-medium">{shop.name}</TableCell>
                 <TableCell className="font-medium">{shop.userId}</TableCell>
@@ -134,7 +218,17 @@ const ShopPage = () => {
                   <Button
                     size="icon"
                     variant="outline"
-                    onClick={() => setEditOpen(true)}
+                    onClick={() => {
+                      setSelectedShop(shop);
+
+                      form.reset({
+                        name: shop.name,
+                        userId: shop.userId,
+                        password: "", // 🔥 password blank
+                      });
+
+                      setEditOpen(true);
+                    }}
                   >
                     <Pencil className="h-4 w-4" />
                   </Button>
@@ -157,7 +251,10 @@ const ShopPage = () => {
 
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction variant={"destructive"}>
+                        <AlertDialogAction
+                          variant={"destructive"}
+                          onClick={() => deleteShop(shop.id)}
+                        >
                           Delete
                         </AlertDialogAction>
                       </AlertDialogFooter>

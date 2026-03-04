@@ -2,11 +2,22 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="a055a7ce-c487-48ce-b308-49c2b6a45c56" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/api/login.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/api/safe-action.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/admin/categories/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/admin/categories/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/admin/layout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/admin/layout.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/admin/products/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/admin/products/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/admin/settings/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/admin/settings/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/admin/shop-tab/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/admin/shop-tab/page.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/admin/shop/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/admin/shop/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/api/login/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/api/login/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/branch/layout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/branch/layout.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/branch/products/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/branch/products/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/branch/sale/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/branch/sale/page.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/layout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/layout.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/components/Login.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/components/Login.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/components/app-sidebar.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/components/app-sidebar.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/types/login-schema.ts" beforeDir="false" afterPath="$PROJECT_DIR$/types/login-schema.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/components/user-nav.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/components/user-nav.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -16,24 +27,24 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 1
-}]]></component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 1
+}</component>
   <component name="ProjectId" id="39KJtp80BXsYgY1suWo1oMFVX6J" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "dart.analysis.tool.window.visible": "false",
-    "git-widget-placeholder": "master",
-    "ignore.virus.scanning.warn.message": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;dart.analysis.tool.window.visible&quot;: &quot;false&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
+    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>

@@ -14,17 +14,23 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 
-/** TYPES */
+/** ================= TYPES ================= */
+
 type Branch = {
   id: number;
   name: string;
 };
 
 type BranchProduct = {
+  branchId: number;
   productId: number;
   productName: string;
-  qty: number;
+  quantity: number;
+  purchasePrice: number;
+  salePrice: number;
 };
+
+/** ================= COMPONENT ================= */
 
 export default function BranchStockTabsPage() {
   /** STATES */
@@ -37,56 +43,43 @@ export default function BranchStockTabsPage() {
   /** ================= FETCH BRANCHES ================= */
 
   useEffect(() => {
-    const fetchBranches = async () => {
-      // const res = await fetch("/api/branches")
-      // const data = await res.json()
+    fetchBranches();
+  }, []);
 
-      // MOCK
-      const data = [
-        { id: 1, name: "Shop A" },
-        { id: 2, name: "Shop B" },
-      ];
+  const fetchBranches = async () => {
+    try {
+      const res = await fetch("http://localhost:8080/branches");
+      const data = await res.json();
 
       setBranches(data);
 
       if (data.length > 0) {
         setActiveBranch(data[0].id);
       }
-    };
-
-    fetchBranches();
-  }, []);
+    } catch (err) {
+      console.error("Failed to load branches", err);
+    }
+  };
 
   /** ================= FETCH PRODUCTS BY BRANCH ================= */
 
   const fetchBranchProducts = async (branchId: number) => {
-    // prevent re-fetch if already loaded
     if (branchProducts[branchId]) return;
 
-    // const res = await fetch(`/api/branch-products?branchId=${branchId}`)
-    // const data = await res.json()
+    try {
+      const res = await fetch(
+        `http://localhost:8080/branch-products/${branchId}`,
+      );
 
-    // MOCK
-    let data: BranchProduct[] = [];
+      const data = await res.json();
 
-    if (branchId === 1) {
-      data = [
-        { productId: 1, productName: "Football Jersey", qty: 5 },
-        { productId: 2, productName: "Boots", qty: 2 },
-      ];
+      setBranchProducts((prev) => ({
+        ...prev,
+        [branchId]: data,
+      }));
+    } catch (err) {
+      console.error("Failed to load branch products", err);
     }
-
-    if (branchId === 2) {
-      data = [
-        { productId: 1, productName: "Football Jersey", qty: 3 },
-        { productId: 3, productName: "Bag", qty: 6 },
-      ];
-    }
-
-    setBranchProducts((prev) => ({
-      ...prev,
-      [branchId]: data,
-    }));
   };
 
   /** Load products when active branch changes */
@@ -152,16 +145,18 @@ export default function BranchStockTabsPage() {
                             </TableCell>
 
                             <TableCell className="text-center">
-                              {item.qty}
+                              {item.quantity}
                             </TableCell>
 
                             <TableCell className="text-center">
                               <Badge
                                 variant={
-                                  item.qty < 5 ? "destructive" : "secondary"
+                                  item.quantity < 10
+                                    ? "destructive"
+                                    : "secondary"
                                 }
                               >
-                                {item.qty < 5 ? "Low Stock" : "OK"}
+                                {item.quantity < 10 ? "Low Stock" : "OK"}
                               </Badge>
                             </TableCell>
                           </TableRow>

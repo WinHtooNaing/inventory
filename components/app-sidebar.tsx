@@ -13,6 +13,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import Image from "next/image";
 
 const items = [
   { title: "Home", url: "/admin", icon: Home },
@@ -30,7 +31,15 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="py-10">Ivan Web App</SidebarGroupLabel>
+          <div className="flex flex-col items-center gap-3 my-5">
+            <Image
+              src="/logo.png"
+              alt="Project Logo"
+              width={200}
+              height={60}
+              className="rounded-lg"
+            />
+          </div>
 
           <SidebarGroupContent>
             <SidebarMenu>
