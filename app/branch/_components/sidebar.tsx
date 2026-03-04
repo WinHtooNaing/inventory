@@ -18,6 +18,7 @@ import Image from "next/image";
 const items = [
   { title: "sale", url: "/branch/sale", icon: Home },
   { title: "products", url: "/branch/products", icon: Ship },
+  { title: "daily report", url: "/branch/daily-report", icon: Calendar },
 ];
 
 export function BranchSidebar() {
