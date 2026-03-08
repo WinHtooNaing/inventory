@@ -141,6 +141,17 @@ export default function ShopSalesPage() {
     );
   };
 
+  const changeQty = (id: number, value: string) => {
+    const product = products.find((p) => p.productId === id);
+    if (!product) return;
+
+    const parsedQty = Number.parseInt(value, 10);
+    if (Number.isNaN(parsedQty)) return;
+
+    const qty = Math.min(Math.max(parsedQty, 1), product.quantity);
+    setCart(cart.map((c) => (c.productId === id ? { ...c, qty } : c)));
+  };
+
   /* ---------------- CHECKOUT ---------------- */
 
   const checkout = async () => {
@@ -288,7 +299,17 @@ export default function ShopSalesPage() {
                       >
                         -
                       </Button>
-                      {c.qty}
+                      <Input
+                        type="number"
+                        min={1}
+                        max={
+                          products.find((p) => p.productId === c.productId)
+                            ?.quantity || 1
+                        }
+                        value={c.qty}
+                        onChange={(e) => changeQty(c.productId, e.target.value)}
+                        className="h-9 w-16 text-center"
+                      />
                       <Button
                         size="sm"
                         onClick={() => increaseQty(c.productId)}
